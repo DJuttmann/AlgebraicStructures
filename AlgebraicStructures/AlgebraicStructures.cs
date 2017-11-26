@@ -20,8 +20,10 @@ namespace AlgebraicStructures
 
   public interface Monoid
   {
+    void Copy (Monoid rhs);
     void Add (Monoid rhs);
     void SetZero ();
+    bool IsZero ();
   }
 
 
@@ -39,6 +41,7 @@ namespace AlgebraicStructures
   {
     void Multiply (Ring rhs);
     void SetOne ();
+    bool IsOne ();
   }
 
 
@@ -48,7 +51,7 @@ namespace AlgebraicStructures
   public interface DivisionRing: Ring
   {
     void Invert ();
-    void Divide ();
+    void Divide (DivisionRing rhs);
   }
 
 
@@ -108,16 +111,26 @@ namespace AlgebraicStructures
 //========================================================================================
 // Interface implementations
 
-    public void Add (Monoid obj)
+    public void Copy (Monoid rhs)
     {
-      if (obj is Natural rhs)
+      if (rhs is Natural n)
       {
-        int length = Math.Max (Data.Count, ((Natural) rhs).Data.Count);
+        Data.Clear ();
+        Data.InsertRange (0, n.Data);
+      }
+    }
+
+
+    public void Add (Monoid rhs)
+    {
+      if (rhs is Natural n)
+      {
+        int length = Math.Max (Data.Count, ((Natural) n).Data.Count);
         uint sum = 0;
         List <ushort> newData = new List <ushort> ();
         for (int i = 0; i < length; i++)
         {
-          sum += (uint) GetData (i) + (uint) ((Natural) rhs).GetData (i);
+          sum += (uint) GetData (i) + (uint) ((Natural) n).GetData (i);
           newData.Add ((ushort) (sum % Constants.MaxUshort));
           sum /= Constants.MaxUshort;
         }
@@ -131,6 +144,12 @@ namespace AlgebraicStructures
     public void SetZero ()
     {
       Data.RemoveRange (0, Data.Count);
+    }
+
+
+    public bool IsZero ()
+    {
+      return Data.Count == 0;
     }
 
 //========================================================================================
@@ -148,7 +167,7 @@ namespace AlgebraicStructures
     // Multiplication
     public void Multiply (Natural rhs)
     {
-      Data = (this * rhs).Data;
+      Copy (this * rhs);
     }
 
 
@@ -294,7 +313,7 @@ namespace AlgebraicStructures
 
       for (int i = 0; i <= maxShift; i++)
       {
-        if (rhsShift < this)
+        if (rhsShift <= this)
         {
           this.Difference (rhsShift);
           quotient.Add (bit);
@@ -361,15 +380,22 @@ namespace AlgebraicStructures
       return !(lhs < rhs);
     }
 
+
+    // Cast from ulong
+    public static implicit operator Natural (ulong l)
+    {
+      return new Natural (l);
+    }
+
 //========================================================================================
 // Misc.
 
     // Overloaded constructor: load from Natural.
     public Natural (Natural n)
     {
-      Data = new List <ushort> ();
-      for (int i = 0; i < n.Data.Count; i++)
-        Data.Add (n.Data [i]);
+      Data = new List <ushort> (n.Data);
+//      for (int i = 0; i < n.Data.Count; i++)
+//        Data.Add (n.Data [i]);
     }
 
     
@@ -385,10 +411,35 @@ namespace AlgebraicStructures
     }
 
 
-    // Check if Integer is zero.
-    public bool IsZero ()
+    public void SetOne ()
     {
-      return Data.Count == 0;
+      SetZero ();
+      Data.Add (1);
+    }
+
+
+    public bool IsOne ()
+    {
+      return (Data.Count == 1 && Data [0] == 1);
+    }
+
+
+    public static Natural GCD (Natural lhs, Natural rhs)
+    {
+      Natural a = new Natural (lhs),
+              b = new Natural (rhs),
+              temp;
+      if (a.IsZero ())
+        return b;
+      while (true)
+      {
+        temp = a;
+        a = b;
+        b = temp;
+        if (a.IsZero ())
+          return b;
+        b.DivideWithRemainder (a);
+      }
     }
 
 
@@ -408,7 +459,29 @@ namespace AlgebraicStructures
     }
 
 
-    // Override ToString.
+    public override string ToString ()
+    {
+      if (IsZero ())
+        return "0";
+      StringBuilder str = new StringBuilder ();
+      Natural n = new Natural (this),
+              b = new Natural (10),
+              temp;
+      if (n < b)
+        return "0123456789" [n.Data [0]].ToString ();
+      while (!n.IsZero ())
+      {
+        temp = n.DivideWithRemainder (b);
+        str.Append (n.ToString ());
+        n = temp;
+      }
+      char [] reverse = str.ToString ().ToCharArray ();
+      Array.Reverse (reverse);
+      return new string (reverse);
+    }
+
+
+    /* Override ToString: Display as binary
     public override string ToString ()
     {
       if (Data.Count == 0)
@@ -445,7 +518,7 @@ namespace AlgebraicStructures
       }
 
       return str.ToString ();
-    }
+    }*/
 
 
     // Safely get values from the Data list; returns 0 if index >= Data.Count.
@@ -490,9 +563,35 @@ namespace AlgebraicStructures
 //========================================================================================
 // Interface implementations
 
+    public void Copy (Monoid rhs)
+    {
+      if (rhs is Integer i)
+      {
+        this.AbsValue.Copy (i.AbsValue);
+        this.IsNegative = i.IsNegative;
+      }
+    }
+
+
     public void Add (Monoid rhs)
     {
-      // [wip] Implement this!
+      if (rhs is Integer n)
+      {
+        if (IsNegative)
+        {
+          if (n.IsNegative)
+            AbsValue.Add (n.AbsValue);
+          else
+            Copy (n.AbsValue - AbsValue);
+        }
+        else
+        {
+          if (n.IsNegative)
+            Copy (AbsValue - n.AbsValue);
+          else
+            AbsValue.Add (n.AbsValue);
+        }
+      }
     }
 
 
@@ -532,8 +631,14 @@ namespace AlgebraicStructures
 
     public void SetOne ()
     {
-      AbsValue = new Natural (1);
+      AbsValue.SetOne ();
       IsNegative = false;
+    }
+
+
+    public bool IsOne ()
+    {
+      return AbsValue.IsOne () && !IsNegative;
     }
 
 
@@ -575,12 +680,69 @@ namespace AlgebraicStructures
 
     // Division with remainder; returns quotient, while this is set to remainder.
     // Returns null if rhs = 0;
-    public Integer Division (Integer rhs)
+    public Integer DivideWithRemainder (Integer rhs)
     {
       Integer quotient = new Integer ();
       quotient.AbsValue = AbsValue.DivideWithRemainder (rhs.AbsValue);
       quotient.IsNegative = IsNegative;
       return quotient.AbsValue != null ? quotient : null;
+    }
+
+
+    // Division: returns Rational, or null if rhs = 0.
+    public static Rational operator / (Integer lhs, Integer rhs)
+    {
+      if (rhs.IsZero ())
+        return null;
+      return new Rational (lhs) / new Rational (rhs);
+    }
+
+
+    // <
+    public static bool operator < (Integer lhs, Integer rhs)
+    {
+      if (lhs.Equals (rhs) || (rhs.IsNegative && !lhs.IsNegative))
+        return false;
+      if (lhs.IsNegative && !rhs.IsNegative)
+        return true;
+      if (lhs.IsNegative)
+        return rhs.AbsValue < lhs.AbsValue;
+      return lhs.AbsValue < rhs.AbsValue;
+    }
+
+
+    // >
+    public static bool operator > (Integer lhs, Integer rhs)
+    {
+      return rhs < lhs;
+    }
+
+
+    // <=
+    public static bool operator <= (Integer lhs, Integer rhs)
+    {
+      return !(rhs < lhs);
+    }
+
+
+    // >=
+    public static bool operator >= (Integer lhs, Integer rhs)
+    {
+      return !(lhs < rhs);
+    }
+
+
+    // Cast from long.
+    public static implicit operator Integer (long n)
+    {
+      return new Integer (n);
+    }
+
+
+    // Cast from Natural.
+    public static implicit operator Integer (Natural n)
+    {
+      return new Integer (n);
     }
 
 //========================================================================================
@@ -589,19 +751,37 @@ namespace AlgebraicStructures
     // Constructor: copy from Integer.
     public Integer (Integer n)
     {
-      this.AbsValue = n.AbsValue;
+      this.AbsValue = new Natural (n.AbsValue);
       this.IsNegative = n.IsNegative;
+    }
+
+
+    // Constructor: copy from Natural.
+    public Integer (Natural absValue)
+    {
+      this.AbsValue = new Natural (absValue);
+      this.IsNegative = false;
     }
 
 
     // Constructor: copy from Natural and sign.
     public Integer (Natural absValue, bool negative)
     {
-      this.AbsValue = absValue;
+      this.AbsValue = new Natural (absValue);
       this.IsNegative = negative;
     }
 
 
+    // Constructor: copy from long.
+    public Integer (long n)
+    {
+      this.IsNegative = n < 0;
+      if (this.IsNegative)
+        n = -n;
+      this.AbsValue = new Natural ((ulong) n);
+    }
+
+    
     // Check if Integer is zero.
     public bool IsZero ()
     {
@@ -633,6 +813,565 @@ namespace AlgebraicStructures
       return AbsValue.ToString ();
     }
   }
+
+
+//========================================================================================
+// Class Rational
+//========================================================================================
+
+
+  class Rational: Field, AlgebraOverField <Rational>
+  {
+    private Integer numerator;
+    public Integer Numerator
+    {
+      get {return numerator;}
+      set
+      {
+        Numerator = new Integer (value);
+        Simplify ();
+      }
+    }
+    private Natural denominator;
+    public Natural Denominator
+    {
+      get {return denominator;}
+      set
+      {
+        if (!value.IsZero ())
+        {
+          denominator = new Natural (value);
+          Simplify ();
+        }
+      }
+    }
+
+    
+    // Default constructor: Rational set to 0.
+    public Rational ()
+    {
+      numerator = new Integer (0ul);
+      denominator = new Natural (1);
+    }
+
+//========================================================================================
+// Interface implementations
+
+    public void Copy (Monoid rhs)
+    {
+      if (rhs is Rational r)
+      {
+        numerator.Copy (r.numerator);
+        denominator.Copy (r.denominator);
+      }
+    }
+
+
+    public void Add (Monoid rhs)
+    {
+      if (rhs is Rational r)
+      {
+        Integer rhsNumerator = new Integer (r.numerator);
+        numerator.AbsValue.Multiply (r.denominator);
+        rhsNumerator.AbsValue.Multiply (denominator);
+        numerator.Add (rhsNumerator);
+        denominator.Multiply (r.denominator);
+        Simplify ();
+      }
+    }
+
+
+    public void SetZero ()
+    {
+      numerator.SetZero ();
+      denominator.SetOne ();
+    }
+
+
+    public bool IsZero ()
+    {
+      return numerator.IsZero ();
+    }
+
+
+    public void Negative ()
+    {
+      numerator.Negative ();
+    }
+
+
+    public void Subtract (Group rhs)
+    {
+      if (rhs is Rational r)
+      {
+        numerator.Negative ();
+        Add (r);
+        numerator.Negative ();
+      }
+    }
+
+
+    public void SetOne ()
+    {
+      numerator.SetOne ();
+      denominator.SetOne ();
+    }
+
+
+    public bool IsOne ()
+    {
+      return numerator.IsOne () && denominator.IsOne ();
+    }
+
+
+    public void Multiply (Ring rhs)
+    {
+      if (rhs is Rational r)
+      {
+        numerator.Multiply (r.numerator);
+        denominator.Multiply (r.denominator);
+        Simplify ();
+      }
+    }
+
+
+    public void Invert ()
+    {
+      if (!IsZero ())
+      {
+        Natural temp = denominator;
+        denominator = numerator.AbsValue;
+        numerator.AbsValue = temp;
+      }
+    }
+
+
+    public void Divide (DivisionRing rhs)
+    {
+      if (rhs is Rational r && !r.IsZero ())
+      {
+        Rational d = new Rational (r);
+        d.Invert ();
+        Multiply (d);
+      }
+    }
+
+
+    public void Scale (Rational scalar)
+    {
+      Multiply (scalar);
+    }
+
+//========================================================================================
+// Operators
+
+    // +
+    public static Rational operator + (Rational lhs, Rational rhs)
+    {
+      Rational sum = new Rational (lhs);
+      sum.Add (rhs);
+      return sum;
+    }
+
+
+    // -
+    public static Rational operator - (Rational lhs, Rational rhs)
+    {
+      Rational difference = new Rational (lhs);
+      difference.Subtract (rhs);
+      return difference;
+    }
+
+
+    // *
+    public static Rational operator * (Rational lhs, Rational rhs)
+    {
+      Rational product = new Rational (lhs);
+      product.Multiply (rhs);
+      return product;
+    }
+
+
+    // /
+    public static Rational operator / (Rational lhs, Rational rhs)
+    {
+      Rational quotient = new Rational (lhs);
+      quotient.Divide (rhs);
+      return quotient;
+    }
+
+
+    // <
+    public static bool operator < (Rational lhs, Rational rhs)
+    {
+      if (lhs.Equals (rhs) || (rhs.numerator.IsNegative && !lhs.numerator.IsNegative))
+        return false;
+      if (lhs.numerator.IsNegative && !rhs.numerator.IsNegative)
+        return true;
+      if (lhs.numerator.IsNegative)
+        return rhs.numerator.AbsValue * lhs.denominator < 
+               lhs.numerator.AbsValue * rhs.denominator;
+      return lhs.numerator.AbsValue * rhs.denominator <
+             rhs.numerator.AbsValue * lhs.denominator;
+    }
+
+
+    // >
+    public static bool operator > (Rational lhs, Rational rhs)
+    {
+      return rhs < lhs;
+    }
+
+
+    // <=
+    public static bool operator <= (Rational lhs, Rational rhs)
+    {
+      return !(rhs < lhs);
+    }
+
+
+    // >=
+    public static bool operator >= (Rational lhs, Rational rhs)
+    {
+      return !(lhs < rhs);
+    }
+
+
+    // Cast from Natural.
+    public static implicit operator Rational (Natural n)
+    {
+      return new Rational (n);
+    }
+
+
+    // Cast from Integer.
+    public static implicit operator Rational (Integer i)
+    {
+      return new Rational (i);
+    }
+
+//========================================================================================
+// Misc
+
+    // Constructor: copy from Rational.
+    public Rational (Rational r)
+    {
+      numerator = new Integer (r.numerator);
+      denominator = new Natural (r.denominator);
+    }
+
+
+    // Constructor: copy from Integer and Natural.
+    public Rational (Integer n, Natural d)
+    {
+      numerator = new Integer (n);
+      denominator = new Natural (d);
+    }
+
+   
+    // Constructor: copy from Natural.
+    public Rational (Natural n)
+    {
+      numerator = new Integer (n);
+      denominator = new Natural (1);
+    }
+
+
+    // Constructor: copy from Integer.
+    public Rational (Integer n)
+    {
+      numerator = new Integer (n);
+      denominator = new Natural (1);
+    }
+
+
+    // Put the fraction in simples form such that GCD (numerator, denominator) = 1.
+    private void Simplify ()
+    {
+      Natural gcd = Natural.GCD (numerator.AbsValue, denominator);
+      if (!gcd.IsOne ())
+      { // if not coprime, divide out gcd
+        numerator.AbsValue /= gcd;
+        denominator /= gcd;
+      }
+    }
+
+
+    public override bool Equals (object obj)
+    {
+      return obj is Rational r && r.numerator == numerator && r.denominator == denominator;
+    }
+
+
+    public override string ToString ()
+    {
+      return numerator.ToString () +
+             (denominator.IsOne () ? "" : "/" + denominator.ToString ());
+    }
+  }
+
+
+//========================================================================================
+// Class Polynomial <R>
+//========================================================================================
+
+
+  class Polynomial <R>: Algebra <R> where R: Ring, new ()
+  {
+    private List <R> Coefficients;
+    public R this [int index]
+    {
+      get
+      {
+        R Coefficient = new R ();
+        if (index < Coefficients.Count)
+          Coefficient.Copy (Coefficients [index]);
+        return Coefficient;
+      }
+      set
+      {
+        for (int i = Coefficients.Count (); i <= index; i++)
+          Coefficients.Add (new R ());
+        Coefficients [index].Copy (value);
+      }
+    }
+
+
+    // Default constructor: Polynomial set to 0.
+    public Polynomial ()
+    {
+      Coefficients = new List <R> ();
+    }
+
+//========================================================================================
+// Interface implementations
+
+    public void Copy (Monoid rhs)
+    {
+      if (rhs is Polynomial <R> r)
+      {
+        Coefficients.Clear ();
+        for (int i = 0; i < r.Coefficients.Count; i++)
+        {
+          Coefficients [i] = new R ();
+          Coefficients [i].Copy (r.Coefficients [i]);
+        }
+      }
+    }
+
+
+    public void Add (Monoid rhs)
+    {
+      if (rhs is Polynomial <R> r)
+      {
+        for (int i = Math.Min (Coefficients.Count, r.Coefficients.Count) - 1; i >= 0; i--)
+          Coefficients [i].Add (r.Coefficients [i]);
+        for (int i = Coefficients.Count; i < r.Coefficients.Count; i++)
+        {
+          Coefficients.Add (new R ());
+          Coefficients [i].Copy (r.Coefficients [i]);
+        }
+        Normalize ();
+      }
+    }
+
+
+    public void SetZero ()
+    {
+      Coefficients.Clear ();
+    }
+
+
+    public bool IsZero ()
+    {
+      return Coefficients.Count == 0;
+    }
+
+
+    public void Negative ()
+    {
+      for (int i = 0; i < Coefficients.Count; i++)
+        Coefficients [i].Negative ();
+    }
+
+
+    public void Subtract (Group rhs)
+    {
+      if (rhs is Polynomial <R> r)
+      {
+        Polynomial <R> rhsNegative = new Polynomial <R> (r);
+        rhsNegative.Negative ();
+        Add (rhsNegative);
+      }
+    }
+
+
+    public void Multiply (Ring rhs)
+    {
+      if (rhs is Polynomial <R> r)
+      {
+        Copy (this * r);
+      }
+    }
+
+
+    public void SetOne ()
+    {
+      R One = new R ();
+      One.SetOne ();
+      if (Coefficients.Count == 0)
+        Coefficients.Add (One);
+      else
+      {
+        Coefficients.RemoveRange (1, Coefficients.Count - 1);
+        Coefficients [0].Copy (One);
+      }
+    }
+
+
+    public bool IsOne ()
+    {
+      return Coefficients.Count == 1 && Coefficients [0].IsOne ();
+    }
+
+
+    public void Scale (R rhs)
+    {
+      for (int i = 0; i < Coefficients.Count; i++)
+        Coefficients [i].Multiply (rhs);
+    }
+
+//========================================================================================
+// Operators
+
+    // +
+    public static Polynomial <R> operator + (Polynomial <R> lhs, Polynomial <R> rhs)
+    {
+      Polynomial <R> sum = new Polynomial <R> (lhs);
+      sum.Add (rhs);
+      return sum;
+    }
+
+
+    // -
+    public static Polynomial <R> operator - (Polynomial <R> lhs, Polynomial <R> rhs)
+    {
+      Polynomial <R> difference = new Polynomial <R> (lhs);
+      difference.Subtract (rhs);
+      return difference;
+    }
+
+
+    // *
+    public static Polynomial <R> operator * (Polynomial <R> lhs, Polynomial <R> rhs)
+    {
+      Polynomial <R> product = new Polynomial <R> ();
+      if (lhs.Coefficients.Count != 0 && rhs.Coefficients.Count != 0)
+      {
+        int size = lhs.Coefficients.Count + rhs.Coefficients.Count - 1;
+        int min, max;
+        R coefficient, 
+          temp = new R ();
+        for (int i = 0; i < size; i++)
+        {
+          coefficient = new R ();
+          min = Math.Max (0, i - rhs.Coefficients.Count + 1);
+          max = Math.Min (i, lhs.Coefficients.Count - 1);
+          for (int j = min; j <= max; j++)
+          {
+            temp.Copy (lhs.Coefficients [j]);
+            temp.Multiply (rhs.Coefficients [i - j]);
+            coefficient.Add (temp);
+          }
+          product.Coefficients.Add (coefficient);
+        }
+      }
+      return product;
+    }
+
+
+    // Cast from R.
+    public static implicit operator Polynomial <R> (R r)
+    {
+      return new Polynomial <R> (r);
+    }
+
+//========================================================================================
+// Misc.
+
+    // Constructor: Copy from Polynomial <R>.
+    public Polynomial (Polynomial <R> p)
+    {
+      Coefficients = new List <R> ();
+      for (int i = 0; i < p.Coefficients.Count; i++)
+      {
+        Coefficients.Add (new R ());
+        Coefficients [i].Copy (p.Coefficients [i]);
+      }
+    }
+
+
+    // Constructor: Copy from R.
+    public Polynomial (R r)
+    {
+      Coefficients = new List <R> ();
+      Coefficients.Add (new R ());
+      Coefficients [0].Copy (r);
+    }
+    
+
+    // Remove zeros at the end of Coefficients list.
+    public void Normalize ()
+    {
+      int i = Coefficients.Count - 1;
+      while (i >= 0 && Coefficients [i].IsZero ())
+        i--;
+      i++;
+      Coefficients.RemoveRange (i, Coefficients.Count - i);
+    }
+
+
+    // Return the degree of the polynomial.
+    public int Degree ()
+    {
+      return Coefficients.Count - 1;
+    }
+
+
+    public override bool Equals (Object obj)
+    {
+      if (obj is Polynomial <R> p && p.Coefficients.Count == Coefficients.Count)
+      {
+        for (int i = 0; i < Coefficients.Count; i++)
+          if (Coefficients [i].Equals (p.Coefficients [i]))
+            return false;
+        return true;
+      }
+      return false;
+    }
+
+
+    public override string ToString ()
+    {
+      if (Coefficients.Count == 0) // handle zero case
+      {
+        R zero = new R ();
+        zero.SetZero ();
+        return zero.ToString ();
+      }
+
+      StringBuilder str = new StringBuilder ();
+      for (int i = Coefficients.Count - 1; i > 0; i--)
+      {
+        str.Append (Coefficients [i].ToString ());
+        str.Append ("x^");
+        str.Append (i.ToString ());
+        str.Append (" + ");
+      }
+      str.Append (Coefficients [0].ToString ());
+      return str.ToString ();
+    }
+  }
 }
 
 
@@ -644,19 +1383,25 @@ namespace Program
   {
     static void Main (string [] args)
     {
-      Natural m = new Natural (987654321ul);
-      Natural n = new Natural (123456789ul);
-      Console.WriteLine (m.ToString ());
-      Console.WriteLine (n.ToString ());
+      Polynomial <Rational> m = new Polynomial <Rational> ();
+      Polynomial <Rational> n = new Polynomial <Rational> ();
 
-      Natural temp = new Natural (m);
-      temp.Difference (n);
+      m [0] = new Rational (1, 2);
+      m [1] = new Rational (2, 3);
 
+      n [0] = new Rational (3, 4);
+      n [1] = new Rational (4, 1);
+
+
+      Natural a = new Natural (156254468629);
+      Natural b = new Natural (4321);
+      Console.WriteLine (a);
+      Console.WriteLine (b);
+
+      Console.WriteLine (m);
+      Console.WriteLine (n);
       Console.WriteLine (m + n);
-      Console.WriteLine (m - n);
-
-      Console.WriteLine (m.DivideWithRemainder (n).ToString ());
-      Console.WriteLine (m.ToString ());
+      Console.WriteLine (m * n);
 
       Console.ReadKey ();
     }
