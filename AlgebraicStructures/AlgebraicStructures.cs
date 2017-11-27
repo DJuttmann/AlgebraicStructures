@@ -1065,7 +1065,10 @@ namespace AlgebraicStructures
     public Rational (Integer n, Natural d)
     {
       numerator = new Integer (n);
-      denominator = new Natural (d);
+      if (d.IsZero ())
+        denominator = new Natural (1);
+      else
+        denominator = new Natural (d);
     }
 
    
@@ -1118,7 +1121,7 @@ namespace AlgebraicStructures
 
   class Polynomial <R>: Algebra <R> where R: Ring, new ()
   {
-    private List <R> Coefficients;
+    protected List <R> Coefficients;
     public R this [int index]
     {
       get
@@ -1133,6 +1136,7 @@ namespace AlgebraicStructures
         for (int i = Coefficients.Count (); i <= index; i++)
           Coefficients.Add (new R ());
         Coefficients [index].Copy (value);
+        Normalize ();
       }
     }
 
@@ -1372,6 +1376,71 @@ namespace AlgebraicStructures
       return str.ToString ();
     }
   }
+
+
+//========================================================================================
+// Class FieldPolynomial <F>
+//========================================================================================
+
+
+  class FieldPolynomial <F>: Polynomial <F>, AlgebraOverField <F> where F: Field, new ()
+  {
+
+    // Division with remainder; returns quotient, while this is set to remainder.
+    // Returns null if rhs = 0;
+    FieldPolynomial <F> DivideWithRemainder (FieldPolynomial <F> rhs)
+    {
+      FieldPolynomial <F> quotient = new FieldPolynomial <F> ();
+      if (rhs.Degree () > Degree ())
+        return quotient;
+      if (rhs.IsZero ())
+        return null;
+
+      int rhsDegree = rhs.Degree ();
+      F rhsLeadingCoefficient = rhs.Coefficients [rhsDegree];
+      FieldPolynomial <F> xPower = new FieldPolynomial <F> ();
+      F scale = new F ();
+      F zero = new F ();
+      zero.SetZero ();
+
+      for (int power = Degree () - rhsDegree; power >= 0; power--)
+      {
+        xPower.SetZero ();
+        scale.Copy (this [power + rhsDegree]);
+        scale.Divide (rhsLeadingCoefficient);
+        xPower [power] = scale;
+        xPower.Multiply (rhs);
+        Subtract (xPower);
+        quotient.Add (xPower);
+        this [power + rhsDegree] = zero;
+      }
+      return quotient;
+    }
+
+
+    // /
+    public static FieldPolynomial <F> operator / (FieldPolynomial <F> lhs, FieldPolynomial <F> rhs)
+    {
+      FieldPolynomial <F> remainder = new FieldPolynomial <F> ();
+      remainder.Copy (lhs);
+      return remainder.DivideWithRemainder (rhs);
+    }
+
+
+    // %
+    public static FieldPolynomial <F> operator % (FieldPolynomial <F> lhs, FieldPolynomial <F> rhs)
+    {
+      FieldPolynomial <F> remainder = new FieldPolynomial <F> ();
+      remainder.Copy (lhs);
+      remainder.DivideWithRemainder (rhs);
+      return remainder;
+    }
+  }
+
+//========================================================================================
+// End
+//========================================================================================
+
 }
 
 
