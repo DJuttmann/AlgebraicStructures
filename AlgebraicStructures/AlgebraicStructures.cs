@@ -1437,6 +1437,166 @@ namespace AlgebraicStructures
     }
   }
 
+
+//========================================================================================
+// class CyclicGroup <Nat>
+//========================================================================================
+
+
+  class CyclicGroup <Nat>: Abelian, Group where Nat: _, new ()
+  {
+    public Natural Modulo {get; private set;}
+    public Natural Number {get; private set;}
+
+
+    public CyclicGroup ()
+    {
+      Nat n = new Nat ();
+      Modulo = new Natural ((ulong) n.ToInt ());
+      Number = new Natural ();
+    }
+
+//========================================================================================
+// Interface implementations
+
+    public void Copy (Monoid rhs)
+    {
+      if (rhs is CyclicGroup <Nat> n)
+      {
+        Modulo = n.Modulo;
+        Number = n.Number;
+      }
+    }
+
+
+    public void Add (Monoid rhs)
+    {
+      if (rhs is CyclicGroup <Nat> n)
+      {
+        Number.Add (n.Number);
+        Number.DivideWithRemainder (Modulo);
+      }
+    }
+
+
+    public void SetZero ()
+    {
+      Number.SetZero ();
+    }
+
+
+    public bool IsZero ()
+    {
+      return Number.IsZero ();
+    }
+
+
+    public void Negative ()
+    {
+      Number.Copy ((Modulo - Number).AbsValue);
+    }
+
+
+    public void Subtract (Group rhs)
+    {
+      if (rhs is CyclicGroup <Nat> n)
+      {
+        if (n.Number > Number)
+        {
+          Number.Add (Modulo);
+          Number.Difference (n.Number);
+        }
+        else
+          Number.Difference (n.Number);
+      }
+    }
+
+//========================================================================================
+// Misc.
+
+    public CyclicGroup (Natural number)
+    {
+      Nat n = new Nat ();
+      Modulo = new Natural ((ulong) n.ToInt ());
+      Number = new Natural (number);
+      Number.DivideWithRemainder (Modulo);
+    }
+
+
+    public override string ToString ()
+    {
+      return Number.ToString ();
+    }
+  }
+
+
+//========================================================================================
+// Natural Numbers as Types
+//========================================================================================
+
+
+  class _
+  {
+    public override string ToString () {return "";}
+    public _ () {}
+    public int ToInt ()
+    {
+      string s = ToString ();
+      return s.Length == 0 ? 0 : Int32.Parse (s);
+    }
+  }
+
+  class _0 <T>: _ where T: _, new ()
+  {
+    public override string ToString () {return "0" + new T ().ToString ();}
+  }
+
+  class _1 <T>: _ where T: _, new ()
+  {
+    public override string ToString () {return "1" + new T ().ToString ();}
+  }
+
+  class _2 <T>: _ where T: _, new ()
+  {
+    public override string ToString () {return "2" + new T ().ToString ();}
+  }
+
+  class _3 <T>: _ where T: _, new ()
+  {
+    public override string ToString () {return "3" + new T ().ToString ();}
+  }
+
+  class _4 <T>: _ where T: _, new ()
+  {
+    public override string ToString () {return "4" + new T ().ToString ();}
+  }
+
+  class _5 <T>: _ where T: _, new ()
+  {
+    public override string ToString () {return "5" + new T ().ToString ();}
+  }
+
+  class _6 <T>: _ where T: _, new ()
+  {
+    public override string ToString () {return "6" + new T ().ToString ();}
+  }
+
+  class _7 <T>: _ where T: _, new ()
+  {
+    public override string ToString () {return "7" + new T ().ToString ();}
+  }
+
+  class _8 <T>: _ where T: _, new ()
+  {
+    public override string ToString () {return "8" + new T ().ToString ();}
+  }
+
+  class _9 <T>: _ where T: _, new ()
+  {
+    public override string ToString () {return "9" + new T ().ToString ();}
+  }
+
+
 //========================================================================================
 // End
 //========================================================================================
@@ -1471,6 +1631,10 @@ namespace Program
       Console.WriteLine (n);
       Console.WriteLine (m + n);
       Console.WriteLine (m * n);
+
+      CyclicGroup <_5 <_9 <_7 <_>>>> c = new CyclicGroup <_5 <_9 <_7 <_>>>> (1597);
+      Console.WriteLine ("test " + c.ToString ());
+      Console.WriteLine (1597 % 597);
 
       Console.ReadKey ();
     }
