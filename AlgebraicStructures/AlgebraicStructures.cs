@@ -81,6 +81,19 @@ namespace AlgebraicStructures
   }
 
 
+  public interface Ideal <R>: Module <R> where R: Commutative, Ring
+  {
+    bool FromRing (R r);
+    R ToRing ();
+  }
+
+
+  public interface PrincipalIdeal <R>: Ideal <R> where R: Commutative, Ring
+  {
+    bool SetGenerator ();
+    bool IsGenerator ();
+  }
+
 //========================================================================================
 // Class Natural
 //========================================================================================
@@ -1380,12 +1393,13 @@ namespace AlgebraicStructures
 //========================================================================================
 
 
-  class FieldPolynomial <F>: Polynomial <F>, AlgebraOverField <F> where F: Field, new ()
+  class FieldPolynomial <F>: Polynomial <F>, Commutative, AlgebraOverField <F>
+    where F: Field, new ()
   {
 
     // Division with remainder; returns quotient, while this is set to remainder.
     // Returns null if rhs = 0;
-    FieldPolynomial <F> DivideWithRemainder (FieldPolynomial <F> rhs)
+    public FieldPolynomial <F> DivideWithRemainder (FieldPolynomial <F> rhs)
     {
       FieldPolynomial <F> quotient = new FieldPolynomial <F> ();
       if (rhs.Degree () > Degree ())
@@ -1710,6 +1724,127 @@ namespace AlgebraicStructures
     {
       Item1.Scale (rhs);
       Item2.Scale (rhs);
+    }
+  }
+
+
+//========================================================================================
+// class IdealXSquaredPlus1 <P, R>
+//========================================================================================
+
+
+  class IdealXSquaredPlus1 <P, F>: Ideal <P>
+    where P: FieldPolynomial <F>, new ()
+    where F: Field, new ()
+  {
+    protected P polynomial;
+    public P Polynomial
+    {
+      get 
+      {
+        P p = new P ();
+        p.Copy (polynomial);
+        return p;
+      }
+      set
+      {
+        polynomial.Copy (value);
+      }
+    }
+    static private readonly P Generator;
+
+
+    // Set the Ideal's Generator.
+    static IdealXSquaredPlus1 ()
+    {
+      F one = new F ();
+      one.SetOne ();
+      Generator = new P ();
+      Generator [0] = one;
+      Generator [1] = one;
+    }
+
+    
+    // Default constructor.
+    public IdealXSquaredPlus1 ()
+    {
+      polynomial = new P ();
+    }
+
+//========================================================================================
+// Interface implementations.
+
+    public void Copy (Monoid rhs)
+    {
+      if (rhs is IdealXSquaredPlus1 <P, F> i && i != this)
+      {
+        polynomial = new P ();
+        polynomial.Copy (i.polynomial);
+      }
+    }
+
+
+    public void Add (Monoid rhs)
+    {
+      if (rhs is IdealXSquaredPlus1 <P, F> i)
+      {
+        polynomial.Add (i.polynomial);
+      }
+    }
+
+
+    public void SetZero ()
+    {
+      polynomial.SetZero ();
+    }
+
+
+    public bool IsZero ()
+    {
+      return polynomial.IsZero ();
+    }
+
+
+    public void Negative ()
+    {
+      polynomial.Negative ();
+    }
+
+
+    public void Subtract (Group rhs)
+    {
+      if (rhs is IdealXSquaredPlus1 <P, F> i)
+      {
+        polynomial.Subtract (i.polynomial);
+      }
+    }
+
+
+    public void Scale (P scalar)
+    {
+      polynomial.Multiply (scalar);
+    }
+
+
+    public bool FromRing (P rhs)
+    {
+      P rhsCopy = new P ();
+      rhsCopy.Copy (rhs);
+      rhsCopy.DivideWithRemainder (Generator);
+      if (rhsCopy.IsZero ())
+      {
+        polynomial.Copy (rhs);
+        return true;
+      }
+      return false;
+    }
+
+
+    public P ToRing ()
+    {
+      P p = new P ();
+      p.Copy (polynomial);
+      return p;
     }
   }
 
