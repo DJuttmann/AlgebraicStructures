@@ -82,23 +82,14 @@ namespace AlgebraicStructures
 
 
 //========================================================================================
-// Class Constants
-//========================================================================================
-
-
-  class Constants
-  {
-    public const uint MaxUshort = 1 + (uint) ushort.MaxValue;
-  }
-
-
-//========================================================================================
 // Class Natural
 //========================================================================================
 
 
   class Natural: Monoid
   {
+    public const uint MaxUshort = 1 + (uint) ushort.MaxValue;
+
     private List <ushort> Data;
 
 
@@ -113,7 +104,7 @@ namespace AlgebraicStructures
 
     public void Copy (Monoid rhs)
     {
-      if (rhs is Natural n)
+      if (rhs is Natural n && n != this)
       {
         Data.Clear ();
         Data.InsertRange (0, n.Data);
@@ -125,14 +116,14 @@ namespace AlgebraicStructures
     {
       if (rhs is Natural n)
       {
-        int length = Math.Max (Data.Count, ((Natural) n).Data.Count);
+        int length = Math.Max (Data.Count, n.Data.Count);
         uint sum = 0;
         List <ushort> newData = new List <ushort> ();
         for (int i = 0; i < length; i++)
         {
-          sum += (uint) GetData (i) + (uint) ((Natural) n).GetData (i);
-          newData.Add ((ushort) (sum % Constants.MaxUshort));
-          sum /= Constants.MaxUshort;
+          sum += (uint) GetData (i) + (uint) n.GetData (i);
+          newData.Add ((ushort) (sum % MaxUshort));
+          sum /= MaxUshort;
         }
         if (sum > 0)
           newData.Add ((ushort) (sum));
@@ -187,7 +178,7 @@ namespace AlgebraicStructures
           temp += (ulong) lhs.Data [j] * (ulong) rhs.Data [i - j];
         }
         product.Data.Add ((ushort) temp);
-        temp /= Constants.MaxUshort;
+        temp /= MaxUshort;
       }
       if (product.Data [size - 1] == 0)
         product.Data.RemoveAt (size - 1);
@@ -223,7 +214,7 @@ namespace AlgebraicStructures
         }
         else
         {
-          difference.Data [i] = (ushort) ((difference.Data [i] + Constants.MaxUshort) - carry);
+          difference.Data [i] = (ushort) ((difference.Data [i] + MaxUshort) - carry);
           carry = 1;
         }
       }
@@ -406,7 +397,7 @@ namespace AlgebraicStructures
       while (l > 0)
       {
         Data.Add ((ushort) l);
-        l /= Constants.MaxUshort;
+        l /= MaxUshort;
       }
     }
 
@@ -565,7 +556,7 @@ namespace AlgebraicStructures
 
     public void Copy (Monoid rhs)
     {
-      if (rhs is Integer i)
+      if (rhs is Integer i && i != this)
       {
         this.AbsValue.Copy (i.AbsValue);
         this.IsNegative = i.IsNegative;
@@ -820,7 +811,7 @@ namespace AlgebraicStructures
 //========================================================================================
 
 
-  class Rational: Field, AlgebraOverField <Rational>
+  class Rational: Field, AlgebraOverField <Rational>, Algebra <Integer>
   {
     private Integer numerator;
     public Integer Numerator
@@ -859,7 +850,7 @@ namespace AlgebraicStructures
 
     public void Copy (Monoid rhs)
     {
-      if (rhs is Rational r)
+      if (rhs is Rational r && r != this)
       {
         numerator.Copy (r.numerator);
         denominator.Copy (r.denominator);
@@ -960,6 +951,12 @@ namespace AlgebraicStructures
     public void Scale (Rational scalar)
     {
       Multiply (scalar);
+    }
+
+
+    public void Scale (Integer scalar)
+    {
+      Multiply ((Rational) scalar);
     }
 
 //========================================================================================
@@ -1152,7 +1149,7 @@ namespace AlgebraicStructures
 
     public void Copy (Monoid rhs)
     {
-      if (rhs is Polynomial <R> r)
+      if (rhs is Polynomial <R> r && r != this)
       {
         Coefficients.Clear ();
         for (int i = 0; i < r.Coefficients.Count; i++)
@@ -1461,7 +1458,7 @@ namespace AlgebraicStructures
 
     public void Copy (Monoid rhs)
     {
-      if (rhs is CyclicGroup <Nat> n)
+      if (rhs is CyclicGroup <Nat> n && n != this)
       {
         Modulo = n.Modulo;
         Number = n.Number;
@@ -1512,6 +1509,29 @@ namespace AlgebraicStructures
     }
 
 //========================================================================================
+// Operators.
+
+    public static CyclicGroup <Nat> operator + (CyclicGroup <Nat> lhs,
+                                                CyclicGroup <Nat> rhs)
+    {
+      CyclicGroup <Nat> sum = new CyclicGroup <Nat> (lhs);
+      sum.Add (rhs);
+      return sum;
+    }
+
+
+    public static CyclicGroup <Nat> operator - (CyclicGroup <Nat> lhs,
+                                                CyclicGroup <Nat> rhs)
+    {
+      CyclicGroup <Nat> difference = new CyclicGroup <Nat> (lhs);
+      difference.Subtract (rhs);
+      return difference;
+    }
+
+// [wip] add these
+
+
+//========================================================================================
 // Misc.
 
     public CyclicGroup (Natural number)
@@ -1523,9 +1543,173 @@ namespace AlgebraicStructures
     }
 
 
+    public CyclicGroup (CyclicGroup <Nat> c)
+    {
+      Modulo = new Natural (c.Modulo);
+      Number = new Natural (c.Number);
+    }
+
+
     public override string ToString ()
     {
       return Number.ToString ();
+    }
+  }
+
+
+//========================================================================================
+// class DirectProductGroup <G, H>
+//========================================================================================
+
+ 
+  class DirectProductGroup <G, H>: Group
+    where G: Group, new ()
+    where H: Group, new ()
+    {
+      public G Item1;
+      public H Item2;
+
+
+    // Default constructor: set to zero.
+    public DirectProductGroup ()
+    {
+      Item1 = new G ();
+      Item2 = new H ();
+    }
+
+//========================================================================================
+// Interface implementations.
+
+    public void Copy (Monoid rhs)
+    {
+      if (rhs is DirectProductGroup <G, H> p && p != this)
+      {
+        Item1.Copy (p.Item1);
+        Item2.Copy (p.Item2);
+      }
+    }
+
+
+    public void Add (Monoid rhs)
+    {
+      if (rhs is DirectProductGroup <G, H> p)
+      {
+        Item1.Add (p.Item1);
+        Item2.Add (p.Item2);
+      }
+    }
+
+
+    public void SetZero ()
+    {
+      Item1.SetZero ();
+      Item2.SetZero ();
+    }
+
+
+    public bool IsZero ()
+    {
+      return Item1.IsZero () && Item2.IsZero ();
+    }
+
+
+    public void Negative ()
+    {
+      Item1.Negative ();
+      Item2.Negative ();
+    }
+
+
+    public void Subtract (Group rhs)
+    {
+      if (rhs is DirectProductGroup <G, H> p)
+      {
+        Item1.Subtract (p.Item1);
+        Item2.Subtract (p.Item2);
+      }
+    }
+
+//========================================================================================
+// Operators.
+
+    public static DirectProductGroup <G, H> operator + (DirectProductGroup <G, H> lhs,
+                                                  DirectProductGroup <G, H> rhs)
+    {
+      DirectProductGroup <G, H> sum = new DirectProductGroup <G, H> (lhs);
+      sum.Add (rhs);
+      return sum;
+    }
+
+
+    public static DirectProductGroup <G, H> operator - (DirectProductGroup <G, H> lhs,
+                                                  DirectProductGroup <G, H> rhs)
+    {
+      DirectProductGroup <G, H> difference = new DirectProductGroup <G, H> (lhs);
+      difference.Subtract (rhs);
+      return difference;
+    }
+
+//========================================================================================
+// Misc.
+
+    // Constructor: Copy from ProductGroup <G, H>.
+    public DirectProductGroup (DirectProductGroup <G, H> p)
+    {
+      Item1 = new G ();
+      Item2 = new H ();
+      Item1.Copy (p.Item1);
+      Item2.Copy (p.Item2);
+    }
+
+
+    // Constructor: Copy from groups G, H.
+    public DirectProductGroup (G g, H h)
+    {
+      Item1 = new G ();
+      Item2 = new H ();
+      Item1.Copy (g);
+      Item2.Copy (h);
+    }
+
+
+    public override bool Equals (object obj)
+    {
+      if (obj is DirectProductGroup <G, H> p)
+        return Item1.Equals (p.Item1) && Item2.Equals (p.Item2);
+      return false;
+    }
+
+
+    public override string ToString ()
+    {
+      return "(" + Item1.ToString () + ", " + Item2.ToString () + ")";
+    }
+  }
+
+
+//========================================================================================
+// class DirectProductModule <M, N, R>
+//========================================================================================
+
+
+  class DirectProductModule <M, N, R>: DirectProductGroup <M, N>, Module <R>
+    where M: Module <R>, new ()
+    where N: Module <R>, new ()
+    where R: Ring, new ()
+  {
+    public DirectProductModule ()
+    {
+      Item1 = new M ();
+      Item2 = new N ();
+    }
+
+//========================================================================================
+// Interface implementations.
+
+    public void Scale (R rhs)
+    {
+      Item1.Scale (rhs);
+      Item2.Scale (rhs);
     }
   }
 
@@ -1612,6 +1796,7 @@ namespace Program
   {
     static void Main (string [] args)
     {
+      /*
       Polynomial <Rational> m = new Polynomial <Rational> ();
       Polynomial <Rational> n = new Polynomial <Rational> ();
 
@@ -1635,6 +1820,22 @@ namespace Program
       CyclicGroup <_5 <_9 <_7 <_>>>> c = new CyclicGroup <_5 <_9 <_7 <_>>>> (1597);
       Console.WriteLine ("test " + c.ToString ());
       Console.WriteLine (1597 % 597);
+
+      DirectProductModule <Rational, Rational, Integer> s = 
+        new DirectProductModule <Rational, Rational, Integer> ();
+      s.Item1 = new Rational (1, 2);
+      s.Item2 = new Rational (3, 5);
+      Integer t = new Integer (6ul);
+      Console.WriteLine (s);
+      Console.WriteLine (t);
+      s.Scale (t);
+      Console.WriteLine (s);
+      */
+
+      Natural n = new Natural (123);
+      n.Copy (n);
+      n.Add (n);
+      Console.WriteLine (n);
 
       Console.ReadKey ();
     }
