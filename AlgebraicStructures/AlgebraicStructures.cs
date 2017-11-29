@@ -80,11 +80,22 @@ namespace AlgebraicStructures
   {
   }
 
+//----------------------------------------------------------------------------------------
 
-  public interface Ideal <R>: Module <R> where R: Commutative, Ring
+  public interface SubGroup <G>: Group where G: Group
   {
-    bool FromRing (R r);
-    R ToRing ();
+    bool FromParent (G g);
+    G ToParent ();
+  }
+
+
+  public interface NormalSubGroup <G>: SubGroup <G> where G: Group
+  {
+  }
+
+
+  public interface Ideal <R>: Module <R>, NormalSubGroup <R> where R: Commutative, Ring
+  {
   }
 
 
@@ -93,6 +104,7 @@ namespace AlgebraicStructures
     bool SetGenerator ();
     bool IsGenerator ();
   }
+
 
 //========================================================================================
 // Class Natural
@@ -483,46 +495,6 @@ namespace AlgebraicStructures
       Array.Reverse (reverse);
       return new string (reverse);
     }
-
-
-    /* Override ToString: Display as binary
-    public override string ToString ()
-    {
-      if (Data.Count == 0)
-        return "0";
-      char [] DigitsBinary = new [] {'0', '1'};
-      StringBuilder str = new StringBuilder ();
-      StringBuilder block = new StringBuilder ();
-      int i = Data.Count - 1;
-
-      // Write first block.
-      ushort value = Data [i];
-      while (value > 0)
-      {
-        block.Append (DigitsBinary [value % 2]);
-        value /= 2;
-      }
-      for (int j = block.Length - 1; j >= 0; j--)
-        str.Append (block [j]);
-      i--;
-
-      // Write other blocks.
-      for (; i >= 0; i--)
-      {
-        block.Clear ();
-        str.Append ("'");
-        value = Data [i];
-        for (int j = 0; j < 16; j++)
-        {
-          block.Append (DigitsBinary [value % 2]);
-          value /= 2;
-        }
-        for (int j = block.Length - 1; j >= 0; j--)
-          str.Append (block [j]);
-      }
-
-      return str.ToString ();
-    }*/
 
 
     // Safely get values from the Data list; returns 0 if index >= Data.Count.
@@ -1572,8 +1544,9 @@ namespace AlgebraicStructures
 
 
 //========================================================================================
-// class DirectProductGroup <G, H>
+// Direct Product Classes
 //========================================================================================
+// class DirectProductGroup <G, H>
 
  
   class DirectProductGroup <G, H>: Group
@@ -1591,7 +1564,7 @@ namespace AlgebraicStructures
       Item2 = new H ();
     }
 
-//========================================================================================
+//----------------------------------------------------------------------------------------
 // Interface implementations.
 
     public void Copy (Monoid rhs)
@@ -1643,7 +1616,7 @@ namespace AlgebraicStructures
       }
     }
 
-//========================================================================================
+//----------------------------------------------------------------------------------------
 // Operators.
 
     public static DirectProductGroup <G, H> operator + (DirectProductGroup <G, H> lhs,
@@ -1663,7 +1636,7 @@ namespace AlgebraicStructures
       return difference;
     }
 
-//========================================================================================
+//----------------------------------------------------------------------------------------
 // Misc.
 
     // Constructor: Copy from ProductGroup <G, H>.
@@ -1703,7 +1676,6 @@ namespace AlgebraicStructures
 
 //========================================================================================
 // class DirectProductModule <M, N, R>
-//========================================================================================
 
 
   class DirectProductModule <M, N, R>: DirectProductGroup <M, N>, Module <R>
@@ -1711,19 +1683,263 @@ namespace AlgebraicStructures
     where N: Module <R>, new ()
     where R: Ring, new ()
   {
-    public DirectProductModule ()
-    {
-      Item1 = new M ();
-      Item2 = new N ();
-    }
-
-//========================================================================================
-// Interface implementations.
-
     public void Scale (R rhs)
     {
       Item1.Scale (rhs);
       Item2.Scale (rhs);
+    }
+  }
+
+
+//========================================================================================
+// class DirectProductRing <R, S>
+
+  class DirectProductRing <R, S>: DirectProductGroup <R, S>, Ring
+    where R: Ring, new ()
+    where S: Ring, new ()
+  {
+    public void Multiply (Ring rhs)
+    {
+      if (rhs is DirectProductRing <R, S> p)
+      {
+        Item1.Multiply (p.Item1);
+        Item2.Multiply (p.Item2);
+      }
+    }
+
+
+    public void SetOne ()
+    {
+      Item1.SetOne ();
+      Item2.SetOne ();
+    }
+
+
+    public bool IsOne ()
+    {
+      return Item1.IsOne () && Item2.IsOne ();
+    }
+  }
+
+
+//========================================================================================
+// class DirectProductAlgebra <A, B, R>
+
+
+  class DirectProductAlgebra <A, B, R>: DirectProductRing <A, B>, Algebra <R>
+    where A: Algebra <R>, new ()
+    where B: Algebra <R>, new ()
+    where R: Ring, new ()
+  {
+    public void Scale (R rhs)
+    {
+      Item1.Scale (rhs);
+      Item2.Scale (rhs);
+    }
+  }
+
+
+//========================================================================================
+// class DirectProductVectorSpace <V, W, F>
+
+
+  class DirectProductVectorSpace <V, W, F>: DirectProductModule <V, W, F>, VectorSpace <F>
+    where V: VectorSpace <F>, new ()
+    where W: VectorSpace <F>, new ()
+    where F: Field, new ()
+  {
+  }
+
+
+//========================================================================================
+// class DirectProductAlgebraOverField <V, W, F>
+
+
+  class DirectProductAlgebraOverField <A, B, F>: DirectProductAlgebra <A, B, F>, Algebra <F>
+    where A: Algebra <F>, new ()
+    where B: Algebra <F>, new ()
+    where F: Field, new ()
+  {
+  }
+
+
+//========================================================================================
+// Quotient Classes
+//========================================================================================
+// class QuotientGroup <G, H>
+
+
+  class QuotientGroup <G, H>: Group
+    where G: Group, new ()
+    where H: NormalSubGroup <G>, new ()
+  {
+    protected G Representative;
+
+
+    public QuotientGroup ()
+    {
+      Representative = new G ();
+    }
+
+//----------------------------------------------------------------------------------------
+// Interface implementations.
+
+    public void Copy (Monoid rhs)
+    {
+      if (rhs is QuotientGroup <G, H> q && q != this)
+        Representative.Copy (q.Representative);
+    }
+
+
+    public void Add (Monoid rhs)
+    {
+      if (rhs is QuotientGroup <G, H> q)
+        Representative.Add (q.Representative);
+    }
+
+
+    public void SetZero ()
+    {
+      Representative.SetZero ();
+    }
+
+
+    public bool IsZero ()
+    {
+      QuotientGroup <G, H> zero = new QuotientGroup <G, H> ();
+      return Equals (zero);
+    }
+
+
+    public void Negative ()
+    {
+      Representative.Negative ();
+    }
+
+
+    public void Subtract (Group rhs)
+    {
+      if (rhs is QuotientGroup <G, H> q)
+        Representative.Subtract (q.Representative);
+    }
+
+//----------------------------------------------------------------------------------------
+// Operators.
+
+    public static QuotientGroup <G, H> operator + (QuotientGroup <G, H> lhs,
+                                                   QuotientGroup <G, H> rhs)
+    {
+      QuotientGroup <G, H> sum = new QuotientGroup <G, H> (lhs);
+      sum.Add (rhs);
+      return sum;
+    }
+
+
+    public static QuotientGroup <G, H> operator - (QuotientGroup <G, H> lhs,
+                                                   QuotientGroup <G, H> rhs)
+    {
+      QuotientGroup <G, H> difference = new QuotientGroup <G, H> (lhs);
+      difference.Subtract (rhs);
+      return difference;
+    }
+
+
+    public static implicit operator QuotientGroup <G, H> (G g)
+    {
+      return new QuotientGroup <G, H> (g);
+    }
+
+//----------------------------------------------------------------------------------------
+// Misc.
+
+    public QuotientGroup (QuotientGroup <G, H> rhs)
+    {
+      Representative = new G ();
+      Representative.Copy (rhs.Representative);
+    }
+
+
+    public QuotientGroup (G rhs)
+    {
+      Representative = new G ();
+      Representative.Copy (rhs);
+    }
+
+
+    public override bool Equals (Object obj)
+    {
+      if (obj is QuotientGroup <G, H> q)
+      {
+        G difference = new G ();
+        H test = new H ();
+        difference.Copy (Representative);
+        difference.Subtract (q.Representative);
+        if (test.FromParent (difference))
+          return true;
+      }
+      return false;
+    }
+
+
+    public override string ToString ()
+    {
+      return "[" + Representative.ToString () + "]"; 
+    }
+  }
+
+
+//========================================================================================
+// class QuotientRing <R, S>
+
+
+  class QuotientRing <R, I>: QuotientGroup <R, I>, Commutative, Ring
+    where R: Commutative, Ring, new ()
+    where I: Ideal <R>, new ()
+  {
+
+    public QuotientRing ()
+    {
+      Representative = new R ();
+    }
+
+//----------------------------------------------------------------------------------------
+
+    public void Multiply (Ring rhs)
+    {
+      if (rhs is QuotientRing <R, I> q)
+      {
+        Representative.Multiply (q.Representative);
+      }
+    }
+
+
+    public void SetOne ()
+    {
+      Representative.SetOne ();
+    }
+
+
+    public bool IsOne ()
+    {
+      QuotientRing <R, I> one = new QuotientRing <R, I> ();
+      one.SetOne ();
+      return Equals (one);
+    }
+
+//----------------------------------------------------------------------------------------
+// Misc.
+
+    public QuotientRing (QuotientRing <R, I> rhs)
+    {
+      Representative = new R ();
+      Representative.Copy (rhs.Representative);
+    }
+
+
+    public QuotientRing (R rhs)
+    {
+      Representative = new R ();
+      Representative.Copy (rhs);
     }
   }
 
@@ -1826,7 +2042,7 @@ namespace AlgebraicStructures
     }
 
 
-    public bool FromRing (P rhs)
+    public bool FromParent (P rhs)
     {
       P rhsCopy = new P ();
       rhsCopy.Copy (rhs);
@@ -1840,7 +2056,7 @@ namespace AlgebraicStructures
     }
 
 
-    public P ToRing ()
+    public P ToParent ()
     {
       P p = new P ();
       p.Copy (polynomial);
@@ -1971,6 +2187,8 @@ namespace Program
       n.Copy (n);
       n.Add (n);
       Console.WriteLine (n);
+
+
 
       Console.ReadKey ();
     }
