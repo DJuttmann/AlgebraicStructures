@@ -115,7 +115,7 @@ namespace AlgebraicStructures
   {
     public const uint MaxUshort = 1 + (uint) ushort.MaxValue;
 
-    private List <ushort> Data;
+    protected List <ushort> Data;
 
 
     // Default constructor: Natural set to 0.
@@ -525,14 +525,19 @@ namespace AlgebraicStructures
 
   class Integer: Commutative, Algebra <Integer>
   {
-    public Natural AbsValue;
+    protected Natural absValue;
+    public Natural AbsValue
+    {
+      get {return new Natural (absValue);}
+      set {absValue.Copy (value);}
+    }
     public bool IsNegative;
     
 
     // Default constructor: Integer set to 0.
     public Integer ()
     {
-      AbsValue = new Natural ();
+      absValue = new Natural ();
       IsNegative = false;
     }
 
@@ -543,7 +548,7 @@ namespace AlgebraicStructures
     {
       if (rhs is Integer i && i != this)
       {
-        this.AbsValue.Copy (i.AbsValue);
+        this.absValue.Copy (i.absValue);
         this.IsNegative = i.IsNegative;
       }
     }
@@ -556,16 +561,16 @@ namespace AlgebraicStructures
         if (IsNegative)
         {
           if (n.IsNegative)
-            AbsValue.Add (n.AbsValue);
+            absValue.Add (n.absValue);
           else
-            Copy (n.AbsValue - AbsValue);
+            Copy (n.absValue - absValue);
         }
         else
         {
           if (n.IsNegative)
-            Copy (AbsValue - n.AbsValue);
+            Copy (absValue - n.absValue);
           else
-            AbsValue.Add (n.AbsValue);
+            absValue.Add (n.absValue);
         }
       }
     }
@@ -573,7 +578,7 @@ namespace AlgebraicStructures
 
     public void SetZero ()
     {
-      AbsValue = new Natural (0);
+      absValue = new Natural (0);
     }
 
 
@@ -600,28 +605,28 @@ namespace AlgebraicStructures
       if (rhs is Integer n)
       {
         IsNegative ^= n.IsNegative;
-        AbsValue *= n.AbsValue;
+        absValue *= n.absValue;
       }
     }
 
 
     public void SetOne ()
     {
-      AbsValue.SetOne ();
+      absValue.SetOne ();
       IsNegative = false;
     }
 
 
     public bool IsOne ()
     {
-      return AbsValue.IsOne () && !IsNegative;
+      return absValue.IsOne () && !IsNegative;
     }
 
 
     public void Scale (Integer scalar)
     {
       IsNegative ^= scalar.IsNegative;
-      AbsValue *= scalar.AbsValue;
+      absValue *= scalar.absValue;
     }
 
 //========================================================================================
@@ -659,9 +664,9 @@ namespace AlgebraicStructures
     public Integer DivideWithRemainder (Integer rhs)
     {
       Integer quotient = new Integer ();
-      quotient.AbsValue = AbsValue.DivideWithRemainder (rhs.AbsValue);
+      quotient.absValue = absValue.DivideWithRemainder (rhs.absValue);
       quotient.IsNegative = IsNegative;
-      return quotient.AbsValue != null ? quotient : null;
+      return quotient.absValue != null ? quotient : null;
     }
 
 
@@ -682,8 +687,8 @@ namespace AlgebraicStructures
       if (lhs.IsNegative && !rhs.IsNegative)
         return true;
       if (lhs.IsNegative)
-        return rhs.AbsValue < lhs.AbsValue;
-      return lhs.AbsValue < rhs.AbsValue;
+        return rhs.absValue < lhs.absValue;
+      return lhs.absValue < rhs.absValue;
     }
 
 
@@ -727,7 +732,7 @@ namespace AlgebraicStructures
     // Constructor: copy from Integer.
     public Integer (Integer n)
     {
-      this.AbsValue = new Natural (n.AbsValue);
+      this.absValue = new Natural (n.absValue);
       this.IsNegative = n.IsNegative;
     }
 
@@ -735,7 +740,7 @@ namespace AlgebraicStructures
     // Constructor: copy from Natural.
     public Integer (Natural absValue)
     {
-      this.AbsValue = new Natural (absValue);
+      this.absValue = new Natural (absValue);
       this.IsNegative = false;
     }
 
@@ -743,7 +748,7 @@ namespace AlgebraicStructures
     // Constructor: copy from Natural and sign.
     public Integer (Natural absValue, bool negative)
     {
-      this.AbsValue = new Natural (absValue);
+      this.absValue = new Natural (absValue);
       this.IsNegative = negative;
     }
 
@@ -754,14 +759,14 @@ namespace AlgebraicStructures
       this.IsNegative = n < 0;
       if (this.IsNegative)
         n = -n;
-      this.AbsValue = new Natural ((ulong) n);
+      this.absValue = new Natural ((ulong) n);
     }
 
     
     // Check if Integer is zero.
     public bool IsZero ()
     {
-      return AbsValue.IsZero ();
+      return absValue.IsZero ();
     }
 
 
@@ -772,7 +777,7 @@ namespace AlgebraicStructures
       {
         if (IsZero () && rhs.IsZero ())
           return true;
-        if (IsNegative == rhs.IsNegative && AbsValue.Equals (rhs.AbsValue))
+        if (IsNegative == rhs.IsNegative && absValue.Equals (rhs.absValue))
           return true;
       }
       return false;
@@ -782,11 +787,11 @@ namespace AlgebraicStructures
     // Override ToString
     public override string ToString ()
     {
-      if (AbsValue.IsZero ())
+      if (absValue.IsZero ())
         return "0";
       if (IsNegative)
-        return "-" + AbsValue.ToString ();
-      return AbsValue.ToString ();
+        return "-" + absValue.ToString ();
+      return absValue.ToString ();
     }
   }
 
@@ -801,7 +806,7 @@ namespace AlgebraicStructures
     private Integer numerator;
     public Integer Numerator
     {
-      get {return numerator;}
+      get {return new Integer (numerator);}
       set
       {
         Numerator = new Integer (value);
@@ -811,7 +816,7 @@ namespace AlgebraicStructures
     private Natural denominator;
     public Natural Denominator
     {
-      get {return denominator;}
+      get {return new Natural (denominator);}
       set
       {
         if (!value.IsZero ())
@@ -848,8 +853,8 @@ namespace AlgebraicStructures
       if (rhs is Rational r)
       {
         Integer rhsNumerator = new Integer (r.numerator);
-        numerator.AbsValue.Multiply (r.denominator);
-        rhsNumerator.AbsValue.Multiply (denominator);
+        numerator.Multiply ((Integer) r.denominator);
+        rhsNumerator.Multiply ((Integer) denominator);
         numerator.Add (rhsNumerator);
         denominator.Multiply (r.denominator);
         Simplify ();
@@ -1076,7 +1081,7 @@ namespace AlgebraicStructures
       Natural gcd = Natural.GCD (numerator.AbsValue, denominator);
       if (!gcd.IsOne ())
       { // if not coprime, divide out gcd
-        numerator.AbsValue /= gcd;
+        numerator = numerator.DivideWithRemainder (gcd);
         denominator /= gcd;
       }
     }
@@ -1428,15 +1433,26 @@ namespace AlgebraicStructures
 
   class CyclicGroup <Nat>: Abelian, Group where Nat: _, new ()
   {
-    public Natural Modulo {get; private set;}
-    public Natural Number {get; private set;}
+    protected Natural modulo;
+    public Natural Modulo
+    {
+      get {return new Natural (modulo);}
+      set {modulo.Copy (value);}
+    }
+    protected Natural number;
+    public Natural Number
+    {
+      get {return new Natural (number);}
+      set {number.Copy (value);}
+    }
+    // {get; private set;}
 
 
     public CyclicGroup ()
     {
       Nat n = new Nat ();
-      Modulo = new Natural ((ulong) n.ToInt ());
-      Number = new Natural ();
+      modulo = new Natural ((ulong) n.ToInt ());
+      number = new Natural ();
     }
 
 //========================================================================================
@@ -1446,8 +1462,8 @@ namespace AlgebraicStructures
     {
       if (rhs is CyclicGroup <Nat> n && n != this)
       {
-        Modulo = n.Modulo;
-        Number = n.Number;
+        modulo = n.modulo;
+        number = n.number;
       }
     }
 
@@ -1456,27 +1472,27 @@ namespace AlgebraicStructures
     {
       if (rhs is CyclicGroup <Nat> n)
       {
-        Number.Add (n.Number);
-        Number.DivideWithRemainder (Modulo);
+        number.Add (n.number);
+        number.DivideWithRemainder (modulo);
       }
     }
 
 
     public void SetZero ()
     {
-      Number.SetZero ();
+      number.SetZero ();
     }
 
 
     public bool IsZero ()
     {
-      return Number.IsZero ();
+      return number.IsZero ();
     }
 
 
     public void Negative ()
     {
-      Number.Copy ((Modulo - Number).AbsValue);
+      number.Copy ((modulo - number).AbsValue);
     }
 
 
@@ -1484,13 +1500,13 @@ namespace AlgebraicStructures
     {
       if (rhs is CyclicGroup <Nat> n)
       {
-        if (n.Number > Number)
+        if (n.number > number)
         {
-          Number.Add (Modulo);
-          Number.Difference (n.Number);
+          number.Add (modulo);
+          number.Difference (n.number);
         }
         else
-          Number.Difference (n.Number);
+          number.Difference (n.number);
       }
     }
 
@@ -1523,22 +1539,22 @@ namespace AlgebraicStructures
     public CyclicGroup (Natural number)
     {
       Nat n = new Nat ();
-      Modulo = new Natural ((ulong) n.ToInt ());
-      Number = new Natural (number);
-      Number.DivideWithRemainder (Modulo);
+      modulo = new Natural ((ulong) n.ToInt ());
+      this.number = new Natural (number);
+      this.number.DivideWithRemainder (modulo);
     }
 
 
     public CyclicGroup (CyclicGroup <Nat> c)
     {
-      Modulo = new Natural (c.Modulo);
-      Number = new Natural (c.Number);
+      modulo = new Natural (c.modulo);
+      number = new Natural (c.number);
     }
 
 
     public override string ToString ()
     {
-      return Number.ToString ();
+      return number.ToString ();
     }
   }
 
@@ -1552,16 +1568,36 @@ namespace AlgebraicStructures
   class DirectProductGroup <G, H>: Group
     where G: Group, new ()
     where H: Group, new ()
+  {
+    protected G item1;
+    public G Item1
     {
-      public G Item1;
-      public H Item2;
+      get 
+      {
+        G g = new G ();
+        g.Copy (item1);
+        return g;
+      }
+      set {item1.Copy (value);}
+    }
+    protected H item2;
+    public G Item2
+    {
+      get 
+      {
+        G g = new G ();
+        g.Copy (item2);
+        return g;
+      }
+      set {item2.Copy (value);}
+    }
 
 
     // Default constructor: set to zero.
     public DirectProductGroup ()
     {
-      Item1 = new G ();
-      Item2 = new H ();
+      item1 = new G ();
+      item2 = new H ();
     }
 
 //----------------------------------------------------------------------------------------
@@ -1571,8 +1607,8 @@ namespace AlgebraicStructures
     {
       if (rhs is DirectProductGroup <G, H> p && p != this)
       {
-        Item1.Copy (p.Item1);
-        Item2.Copy (p.Item2);
+        item1.Copy (p.item1);
+        item2.Copy (p.item2);
       }
     }
 
@@ -1581,29 +1617,29 @@ namespace AlgebraicStructures
     {
       if (rhs is DirectProductGroup <G, H> p)
       {
-        Item1.Add (p.Item1);
-        Item2.Add (p.Item2);
+        item1.Add (p.item1);
+        item2.Add (p.item2);
       }
     }
 
 
     public void SetZero ()
     {
-      Item1.SetZero ();
-      Item2.SetZero ();
+      item1.SetZero ();
+      item2.SetZero ();
     }
 
 
     public bool IsZero ()
     {
-      return Item1.IsZero () && Item2.IsZero ();
+      return item1.IsZero () && item2.IsZero ();
     }
 
 
     public void Negative ()
     {
-      Item1.Negative ();
-      Item2.Negative ();
+      item1.Negative ();
+      item2.Negative ();
     }
 
 
@@ -1611,8 +1647,8 @@ namespace AlgebraicStructures
     {
       if (rhs is DirectProductGroup <G, H> p)
       {
-        Item1.Subtract (p.Item1);
-        Item2.Subtract (p.Item2);
+        item1.Subtract (p.item1);
+        item2.Subtract (p.item2);
       }
     }
 
@@ -1642,34 +1678,34 @@ namespace AlgebraicStructures
     // Constructor: Copy from ProductGroup <G, H>.
     public DirectProductGroup (DirectProductGroup <G, H> p)
     {
-      Item1 = new G ();
-      Item2 = new H ();
-      Item1.Copy (p.Item1);
-      Item2.Copy (p.Item2);
+      item1 = new G ();
+      item2 = new H ();
+      item1.Copy (p.item1);
+      item2.Copy (p.item2);
     }
 
 
     // Constructor: Copy from groups G, H.
     public DirectProductGroup (G g, H h)
     {
-      Item1 = new G ();
-      Item2 = new H ();
-      Item1.Copy (g);
-      Item2.Copy (h);
+      item1 = new G ();
+      item2 = new H ();
+      item1.Copy (g);
+      item2.Copy (h);
     }
 
 
     public override bool Equals (object obj)
     {
       if (obj is DirectProductGroup <G, H> p)
-        return Item1.Equals (p.Item1) && Item2.Equals (p.Item2);
+        return item1.Equals (p.item1) && item2.Equals (p.item2);
       return false;
     }
 
 
     public override string ToString ()
     {
-      return "(" + Item1.ToString () + ", " + Item2.ToString () + ")";
+      return "(" + item1.ToString () + ", " + item2.ToString () + ")";
     }
   }
 
@@ -1685,8 +1721,8 @@ namespace AlgebraicStructures
   {
     public void Scale (R rhs)
     {
-      Item1.Scale (rhs);
-      Item2.Scale (rhs);
+      item1.Scale (rhs);
+      item2.Scale (rhs);
     }
   }
 
@@ -1702,22 +1738,22 @@ namespace AlgebraicStructures
     {
       if (rhs is DirectProductRing <R, S> p)
       {
-        Item1.Multiply (p.Item1);
-        Item2.Multiply (p.Item2);
+        item1.Multiply (p.item1);
+        item2.Multiply (p.item2);
       }
     }
 
 
     public void SetOne ()
     {
-      Item1.SetOne ();
-      Item2.SetOne ();
+      item1.SetOne ();
+      item2.SetOne ();
     }
 
 
     public bool IsOne ()
     {
-      return Item1.IsOne () && Item2.IsOne ();
+      return item1.IsOne () && item2.IsOne ();
     }
   }
 
@@ -1733,8 +1769,8 @@ namespace AlgebraicStructures
   {
     public void Scale (R rhs)
     {
-      Item1.Scale (rhs);
-      Item2.Scale (rhs);
+      item1.Scale (rhs);
+      item2.Scale (rhs);
     }
   }
 
