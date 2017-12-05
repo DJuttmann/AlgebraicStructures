@@ -106,6 +106,13 @@ namespace AlgebraicStructures
   }
 
 
+  public interface SubModule <M, R>: NormalSubGroup <M>, Module <R>
+    where M: Module <R>
+    where R: Ring
+  {
+  }
+
+
 //========================================================================================
 // Class Natural
 //========================================================================================
@@ -1975,6 +1982,45 @@ namespace AlgebraicStructures
     public QuotientRing (R rhs)
     {
       Representative = new R ();
+      Representative.Copy (rhs);
+    }
+  }
+
+//========================================================================================
+// class QuotientModule <M, N>
+
+
+  class QuotientModule <M, N, R>: QuotientGroup <M, N>, Module <R>
+    where M: Module <R>, new ()
+    where N: SubModule <M, R>, new ()
+    where R: Commutative, Ring, new ()
+  {
+
+    public QuotientModule ()
+    {
+      Representative = new M ();
+    }
+
+//----------------------------------------------------------------------------------------
+
+    public void Scale (R scalar)
+    {
+      Representative.Scale (scalar);
+    }
+
+//----------------------------------------------------------------------------------------
+// Misc.
+
+    public QuotientModule (QuotientModule <M, N, R> rhs)
+    {
+      Representative = new M ();
+      Representative.Copy (rhs.Representative);
+    }
+
+
+    public QuotientModule (M rhs)
+    {
+      Representative = new M ();
       Representative.Copy (rhs);
     }
   }
